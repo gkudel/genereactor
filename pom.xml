@@ -20,6 +20,8 @@
         <module>annotationprocessor</module>
         <module>genedomain</module>
         <module>genemain</module>
+        <module>genengs</module>
+        <module>geneutils</module>
     </modules>
 
     <dependencyManagement>

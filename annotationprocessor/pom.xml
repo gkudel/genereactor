@@ -33,6 +33,11 @@
             <artifactId>gene-core</artifactId>
             <version>${project.parent.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.softcomputer</groupId>
+            <artifactId>gene-utils</artifactId>
+            <version>${project.parent.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

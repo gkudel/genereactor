@@ -59,12 +59,12 @@ public class EntityScanner extends AbstractScanner {
                             whereClause += table.where() + " AND ";
                         }
                         if (primaryKey.isPresent()) {
-                            String query = sql + whereClause + primaryKey.get().name() + " = ?";
+                            String query = sql + whereClause + primaryKey.get().name() + primaryKey.get().query();
                             getStore().put(className, query);
                         }
                         if (foreignEntities.size() > 0) {
                             for (Class<?> key : foreignEntities.keySet()) {
-                                String query = sql + whereClause + foreignEntities.get(key).name() + " = ?";
+                                String query = sql + whereClause + foreignEntities.get(key).name() + foreignEntities.get(key).query();
                                 getStore().put(className + "[" + key.getCanonicalName() + "]", query);
                             }
                         }

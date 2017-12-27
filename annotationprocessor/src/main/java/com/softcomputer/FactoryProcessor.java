@@ -1,8 +1,10 @@
 package com.softcomputer;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.Lists;
 import com.softcomputer.annotations.Column;
 import com.softcomputer.annotations.MetaData;
+import com.softcomputer.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.annotation.processing.*;
@@ -53,6 +55,11 @@ public class FactoryProcessor extends AbstractProcessor {
                     if(mapping.containsKey(superElement)) {
                         mapping.get(superElement).nestedTypes.add(mapping.get(typeElement));
                         toRemove.add(typeElement);
+                    } else {
+                        if(CollectionUtils.first((List<Element>)superElement.getEnclosedElements(),
+                                element -> ElementKind.FIELD.equals(element.getKind()) && element.getAnnotation(Column.class) !=null).isPresent()) {
+                            mapping.get(typeElement).setParent(superElement);
+                        }
                     }
                 }
                 MetaData metaData = typeElement.getAnnotation(MetaData.class);
@@ -66,8 +73,17 @@ public class FactoryProcessor extends AbstractProcessor {
                     if(metaDataTypeMirror != null) {
                         TypeElement metaDataType = (TypeElement) processingEnv.getTypeUtils().asElement(metaDataTypeMirror);
                         if(mapping.containsKey(metaDataType)) {
-                            mapping.get(typeElement).metaDataType = mapping.get(metaDataType);
+                            mapping.get(typeElement).setMetaDataType(mapping.get(metaDataType));
                             toRemove.add(metaDataType);
+                        } else {
+                            List<Element> elements = CollectionUtils.predict((List<Element>) metaDataType.getEnclosedElements(), element -> ElementKind.FIELD.equals(element.getKind()) && element.getAnnotation(Column.class) != null);
+                            if(CollectionUtils.isNotEmpty(elements)) {
+                                TypeDescriptor metaDataDesc = new TypeDescriptor() {{
+                                    setType(metaDataType);
+                                    setElements(elements);
+                                }};
+                                mapping.get(typeElement).setMetaDataType(metaDataDesc);
+                            }
                         }
                     }
                 }
@@ -99,6 +115,9 @@ public class FactoryProcessor extends AbstractProcessor {
             packageName = className.substring(0, lastDot);
         }
 
+        if(typeDescriptor.getParent() != null && StringUtils.isEmpty(parentFactoryClassName)) {
+            parentFactoryClassName = typeDescriptor.getParent().getQualifiedName().toString() + "Factory";
+        }
         String simpleClassName = className.substring(lastDot + 1);
         String factoryClassName = className + "Factory";
         String factorySimpleClassName = factoryClassName.substring(lastDot + 1);
@@ -134,9 +153,22 @@ public class FactoryProcessor extends AbstractProcessor {
                 out.println();
             }
 
+            out.println("    @Override");
             out.print("    public ");
             out.print(simpleClassName);
-            out.println(" create(ResultSet resultSet) throws SQLException {");
+            out.println(" create() {");
+            out.print("        " + simpleClassName);
+            out.print(" object = new ");
+            out.print(simpleClassName);
+            out.println("();");
+            out.println("        return object;");
+            out.println("    }");
+            out.println();
+
+            out.println("    @Override");
+            out.print("    public ");
+            out.print(simpleClassName);
+            out.println(" createAndFill(ResultSet resultSet) throws SQLException {");
             out.print("        " + simpleClassName);
             out.print(" object = new ");
             out.print(simpleClassName);
@@ -146,7 +178,8 @@ public class FactoryProcessor extends AbstractProcessor {
             out.println("    }");
             out.println();
 
-            out.print("    protected void fill(");
+            out.println("    @Override");
+            out.print("    public void fill(");
             out.print(simpleClassName);
             out.println(" object, ResultSet resultSet) throws SQLException {");
             if(StringUtils.isNotEmpty(parentFactoryClassName)) {
@@ -181,6 +214,7 @@ public class FactoryProcessor extends AbstractProcessor {
 
     private class TypeDescriptor {
         private TypeElement type;
+        private TypeElement parent;
         private List<Element> elements;
         private List<TypeDescriptor> nestedTypes;
         private TypeDescriptor metaDataType;
@@ -191,6 +225,14 @@ public class FactoryProcessor extends AbstractProcessor {
 
         public void setType(TypeElement type) {
             this.type = type;
+        }
+
+        public TypeElement getParent() {
+            return parent;
+        }
+
+        public void setParent(TypeElement parent) {
+            this.parent = parent;
         }
 
         public List<Element> getElements() {

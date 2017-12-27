@@ -11,4 +11,5 @@ public @interface Column {
     String name() default "";
     boolean isPrimaryKey() default false;
     Class<?> foreignEntity() default void.class;
+    String query() default " = ?";
 }

@@ -7,10 +7,10 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>gene-main</artifactId>
+    <artifactId>gene-utils</artifactId>
     <packaging>jar</packaging>
 
-    <name>gene-main</name>
+    <name>gene-utils</name>
     <url>http://maven.apache.org</url>
 
     <properties>
@@ -19,13 +19,16 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.softcomputer</groupId>
-            <artifactId>gene-ngs</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
-        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
         </dependency>
     </dependencies>
 </project>
