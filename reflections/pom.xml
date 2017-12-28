@@ -33,7 +33,7 @@
         <dependency>
             <groupId>org.reflections</groupId>
             <artifactId>reflections</artifactId>
-            <version>0.9.11</version>
+            <version>0.9.10</version>
         </dependency>
         <dependency>
             <groupId>dom4j</groupId>
@@ -53,8 +53,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>1.6</source>
+                    <target>1.6</target>
                     <generatedSourcesDirectory>${generated.sources}</generatedSourcesDirectory>
                 </configuration>
             </plugin>

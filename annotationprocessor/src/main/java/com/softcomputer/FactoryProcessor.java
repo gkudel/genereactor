@@ -20,11 +20,11 @@ import java.io.PrintWriter;
 import java.util.*;
 
 @SupportedAnnotationTypes("com.softcomputer.annotations.Column")
-@SupportedSourceVersion(SourceVersion.RELEASE_8)
+@SupportedSourceVersion(SourceVersion.RELEASE_6)
 @AutoService(Processor.class)
 public class FactoryProcessor extends AbstractProcessor {
 
-    private static Map<String, String> FunctionMapping = new HashMap<>();
+    private static Map<String, String> FunctionMapping = new HashMap<String, String>();
     static {
         FunctionMapping.put(String.class.getName(), "getString");
         FunctionMapping.put(Long.class.getName(), "getLong");
@@ -33,22 +33,22 @@ public class FactoryProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        List<TypeDescriptor> factories = new ArrayList<>();
+        List<TypeDescriptor> factories = new ArrayList<TypeDescriptor>();
         for (TypeElement annotation : annotations) {
             Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
-            Map<TypeElement, TypeDescriptor> mapping = new HashMap<>();
+            Map<TypeElement, TypeDescriptor> mapping = new HashMap<TypeElement, TypeDescriptor>();
             for (Element element : annotatedElements) {
                 if(element.getKind() != ElementKind.FIELD) throw new UnsupportedOperationException();
-                TypeElement typeElement =  ((TypeElement) element.getEnclosingElement());
+                final TypeElement typeElement =  ((TypeElement) element.getEnclosingElement());
                 if (!mapping.containsKey(typeElement)) mapping.put(typeElement, new TypeDescriptor() {{
                     setType(typeElement);
-                    setElements(new ArrayList<>());
-                    setNestedTypes(new ArrayList<>());
+                    setElements(new ArrayList<Element>());
+                    setNestedTypes(new ArrayList<TypeDescriptor>());
                 }});
                 mapping.get(typeElement).getElements().add(element);
             }
             if(mapping.isEmpty()) continue;
-            List<TypeElement> toRemove = new ArrayList<>();
+            List<TypeElement> toRemove = new ArrayList<TypeElement>();
             for (TypeElement typeElement : mapping.keySet()) {
                 if(typeElement.getSuperclass() != null) {
                     TypeElement superElement = (TypeElement) processingEnv.getTypeUtils().asElement(typeElement.getSuperclass());
@@ -56,8 +56,12 @@ public class FactoryProcessor extends AbstractProcessor {
                         mapping.get(superElement).nestedTypes.add(mapping.get(typeElement));
                         toRemove.add(typeElement);
                     } else {
-                        if(CollectionUtils.first((List<Element>)superElement.getEnclosedElements(),
-                                element -> ElementKind.FIELD.equals(element.getKind()) && element.getAnnotation(Column.class) !=null).isPresent()) {
+                        if(CollectionUtils.first((List<Element>) superElement.getEnclosedElements(), new CollectionUtils.Predict<Element>() {
+                                    @Override
+                                    public boolean predict(Element element) {
+                                        return ElementKind.FIELD.equals(element.getKind()) && element.getAnnotation(Column.class) != null;
+                                    }
+                                }).isPresent()) {
                             mapping.get(typeElement).setParent(superElement);
                         }
                     }
@@ -71,12 +75,17 @@ public class FactoryProcessor extends AbstractProcessor {
                         metaDataTypeMirror = e.getTypeMirror();
                     }
                     if(metaDataTypeMirror != null) {
-                        TypeElement metaDataType = (TypeElement) processingEnv.getTypeUtils().asElement(metaDataTypeMirror);
+                        final TypeElement metaDataType = (TypeElement) processingEnv.getTypeUtils().asElement(metaDataTypeMirror);
                         if(mapping.containsKey(metaDataType)) {
                             mapping.get(typeElement).setMetaDataType(mapping.get(metaDataType));
                             toRemove.add(metaDataType);
                         } else {
-                            List<Element> elements = CollectionUtils.predict((List<Element>) metaDataType.getEnclosedElements(), element -> ElementKind.FIELD.equals(element.getKind()) && element.getAnnotation(Column.class) != null);
+                            final List<Element> elements = CollectionUtils.predict((List<Element>) metaDataType.getEnclosedElements(), new CollectionUtils.Predict<Element>() {
+                                @Override
+                                public boolean predict(Element element) {
+                                    return ElementKind.FIELD.equals(element.getKind()) && element.getAnnotation(Column.class) != null;
+                                }
+                            });
                             if(CollectionUtils.isNotEmpty(elements)) {
                                 TypeDescriptor metaDataDesc = new TypeDescriptor() {{
                                     setType(metaDataType);
@@ -123,8 +132,9 @@ public class FactoryProcessor extends AbstractProcessor {
         String factorySimpleClassName = factoryClassName.substring(lastDot + 1);
 
         JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(factoryClassName);
-        try (PrintWriter out = new PrintWriter(builderFile.openWriter())) {
-
+        PrintWriter out = null;
+        try {
+            out = new PrintWriter(builderFile.openWriter());
             if (packageName != null) {
                 out.print("package ");
                 out.print(packageName);
@@ -189,6 +199,10 @@ public class FactoryProcessor extends AbstractProcessor {
             writeFillStatements(out, typeDescriptor.elements);
             out.println("    }");
             out.println("}");
+        } finally {
+            if(out != null) {
+                out.close();
+            }
         }
         if(typeDescriptor.nestedTypes != null) {
             for (TypeDescriptor desc: typeDescriptor.nestedTypes) {

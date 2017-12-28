@@ -15,65 +15,60 @@ public class EntityScanner extends AbstractScanner {
     }
 
     public void scan(Object obj) {
-        try {
-            if (obj != null) {
-                Class<?> cls = (Class) obj;
-                Table table = cls.getAnnotation(Table.class);
-                if (table != null) {
-                    if (StringUtils.isEmpty(table.name())) throw new RuntimeException();
+        if (obj != null) {
+            Class<?> cls = (Class) obj;
+            Table table = cls.getAnnotation(Table.class);
+            if (table != null) {
+                if (StringUtils.isEmpty(table.name())) throw new RuntimeException();
 
-                    String className = this.getMetadataAdapter().getClassName(cls);
-                    List<Field> fields = this.getMetadataAdapter().getFields(cls);
-                    fields.addAll(getParentFields(cls.getSuperclass()));
-                    Map<String, Optional<Column>> fieldMapping = new HashMap<>();
-                    for (Field field : fields) {
-                        Column column = field.getAnnotation(Column.class);
-                        fieldMapping.put(getFieldKey(field), column != null ? Optional.of(column) : Optional.absent());
-                    }
-                    parseMetaData(cls, fieldMapping);
-                    Map<Class<?>, Column> foreignEntities = new HashMap<Class<?>, Column>();
+                String className = this.getMetadataAdapter().getClassName(cls);
+                List<Field> fields = this.getMetadataAdapter().getFields(cls);
+                fields.addAll(getParentFields(cls.getSuperclass()));
+                Map<String, Optional<Column>> fieldMapping = new HashMap<String, Optional<Column>>();
+                for (Field field : fields) {
+                    Column column = field.getAnnotation(Column.class);
+                    fieldMapping.put(getFieldKey(field), column != null ? Optional.of(column) : Optional.<Column>absent());
+                }
+                parseMetaData(cls, fieldMapping);
+                Map<Class<?>, Column> foreignEntities = new HashMap<Class<?>, Column>();
 
-                    String sql = StringUtils.EMPTY;
-                    Optional<Column> primaryKey = Optional.absent();
-                    for (String field : fieldMapping.keySet()) {
-                        Optional<Column> optionalColumn = fieldMapping.get(field);
-                        if (optionalColumn.isPresent()) {
-                            Column column = optionalColumn.get();
-                            if (column.isPrimaryKey()) {
-                                if (primaryKey.isPresent()) throw new RuntimeException();
-                                primaryKey = Optional.of(column);
-                            }
-                            if (!void.class.equals(column.foreignEntity())) {
-                                if (foreignEntities.containsKey(column.foreignEntity())) throw new RuntimeException();
-                                foreignEntities.put(column.foreignEntity(), column);
-                            }
-                            if (StringUtils.isEmpty(sql)) sql = column.name();
-                            else sql += ", " + column.name();
+                String sql = StringUtils.EMPTY;
+                Optional<Column> primaryKey = Optional.absent();
+                for (String field : fieldMapping.keySet()) {
+                    Optional<Column> optionalColumn = fieldMapping.get(field);
+                    if (optionalColumn.isPresent()) {
+                        Column column = optionalColumn.get();
+                        if (column.isPrimaryKey()) {
+                            if (primaryKey.isPresent()) throw new RuntimeException();
+                            primaryKey = Optional.of(column);
                         }
+                        if (!void.class.equals(column.foreignEntity())) {
+                            if (foreignEntities.containsKey(column.foreignEntity())) throw new RuntimeException();
+                            foreignEntities.put(column.foreignEntity(), column);
+                        }
+                        if (StringUtils.isEmpty(sql)) sql = column.name();
+                        else sql += ", " + column.name();
                     }
-                    if (StringUtils.isNotEmpty(sql)) {
-                        sql = "SELECT " + sql;
-                        sql += " FROM " + table.name();
-                        String whereClause = " WHERE ";
-                        if (StringUtils.isNotEmpty(table.where())) {
-                            whereClause += table.where() + " AND ";
-                        }
-                        if (primaryKey.isPresent()) {
-                            String query = sql + whereClause + primaryKey.get().name() + primaryKey.get().query();
-                            getStore().put(className, query);
-                        }
-                        if (foreignEntities.size() > 0) {
-                            for (Class<?> key : foreignEntities.keySet()) {
-                                String query = sql + whereClause + foreignEntities.get(key).name() + foreignEntities.get(key).query();
-                                getStore().put(className + "[" + key.getCanonicalName() + "]", query);
-                            }
+                }
+                if (StringUtils.isNotEmpty(sql)) {
+                    sql = "SELECT " + sql;
+                    sql += " FROM " + table.name();
+                    String whereClause = " WHERE ";
+                    if (StringUtils.isNotEmpty(table.where())) {
+                        whereClause += table.where() + " AND ";
+                    }
+                    if (primaryKey.isPresent()) {
+                        String query = sql + whereClause + primaryKey.get().name() + primaryKey.get().query();
+                        getStore().put(className, query);
+                    }
+                    if (foreignEntities.size() > 0) {
+                        for (Class<?> key : foreignEntities.keySet()) {
+                            String query = sql + whereClause + foreignEntities.get(key).name() + foreignEntities.get(key).query();
+                            getStore().put(className + "[" + key.getCanonicalName() + "]", query);
                         }
                     }
                 }
             }
-        } catch (Exception e) {
-            System.out.print(e.getMessage());
-            throw e;
         }
     }
 
@@ -84,7 +79,7 @@ public class EntityScanner extends AbstractScanner {
             ret.addAll(getParentFields(cls.getSuperclass()));
             return ret;
         }
-        return new ArrayList<>();
+        return new ArrayList<Field>();
     }
 
     private void parseMetaData(Class<?> cls, Map<String, Optional<Column>> fieldsMapping) {
