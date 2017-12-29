@@ -1,15 +1,16 @@
-package com.softcomputer.factory;
+package com.softcomputer.annotationprocessor.orm;
+
+import com.softcomputer.annotationprocessor.MapperAnnotationProcessor;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ServiceLoader;
 
-public final class Factories {
+public final class Mappers {
 
-    private Factories(){
+    private Mappers(){
     }
 
-    public static <TEntity> Factory<TEntity> get(Class<TEntity> clazz) {
+    public static <TEntity> Mapper<TEntity> get(Class<TEntity> clazz) {
         try {
             List<ClassLoader> classLoaders = new ArrayList<ClassLoader>( 3 );
             classLoaders.add( clazz.getClassLoader() );
@@ -18,7 +19,7 @@ public final class Factories {
                 classLoaders.add( Thread.currentThread().getContextClassLoader() );
             }
 
-            classLoaders.add( Factories.class.getClassLoader() );
+            classLoaders.add( Mappers.class.getClassLoader() );
 
             return get( clazz, classLoaders );
         }
@@ -27,10 +28,10 @@ public final class Factories {
         }
     }
 
-    private static <TEntity> Factory<TEntity> get(Class<TEntity> factoryType, Iterable<ClassLoader> classLoaders) throws ClassNotFoundException {
+    private static <TEntity> Mapper<TEntity> get(Class<TEntity> factoryType, Iterable<ClassLoader> classLoaders) throws ClassNotFoundException {
 
         for ( ClassLoader classLoader : classLoaders ) {
-            Factory<TEntity> factory = doGetFactory( factoryType, classLoader );
+            Mapper<TEntity> factory = doGetFactory( factoryType, classLoader );
             if ( factory != null ) {
                 return factory;
             }
@@ -39,10 +40,10 @@ public final class Factories {
         throw new ClassNotFoundException("Cannot find implementation for " + factoryType.getName() );
     }
 
-    private static <TEntity> Factory<TEntity> doGetFactory(Class<TEntity> clazz, ClassLoader classLoader) {
+    private static <TEntity> Mapper<TEntity> doGetFactory(Class<TEntity> clazz, ClassLoader classLoader) {
         try {
             @SuppressWarnings("unchecked")
-            Factory<TEntity> factory = (Factory<TEntity>) classLoader.loadClass( clazz.getName()   + "Factory" ).newInstance();
+            Mapper<TEntity> factory = (Mapper<TEntity>) classLoader.loadClass( clazz.getName()   + MapperAnnotationProcessor.NAME_POSTFIX).newInstance();
             return factory;
         }
         catch (ClassNotFoundException e) {

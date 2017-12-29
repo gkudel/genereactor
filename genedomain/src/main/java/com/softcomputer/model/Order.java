@@ -1,9 +1,9 @@
 package com.softcomputer.model;
 
 
-import com.softcomputer.annotations.Column;
-import com.softcomputer.annotations.MetaData;
-import com.softcomputer.annotations.Table;
+import com.softcomputer.annotationprocessor.annotations.Column;
+import com.softcomputer.annotationprocessor.annotations.MetaData;
+import com.softcomputer.annotationprocessor.annotations.Table;
 import com.softcomputer.metadata.OrderMetaData;
 
 @Table(name = "GP_ORDER")

@@ -1,4 +1,4 @@
-package com.softcomputer.annotations;
+package com.softcomputer.annotationprocessor.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -9,7 +9,9 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface Column {
     String name() default "";
-    boolean isPrimaryKey() default false;
     Class<?> foreignEntity() default void.class;
-    String query() default " = ?";
+    String selectQuery() default "";
+    String whereClause() default " = ?";
+    boolean isUpdated() default true;
+    boolean isPrimaryKey() default false;
 }

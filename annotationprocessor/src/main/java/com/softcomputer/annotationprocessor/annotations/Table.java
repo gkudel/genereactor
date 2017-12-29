@@ -1,4 +1,4 @@
-package com.softcomputer.annotations;
+package com.softcomputer.annotationprocessor.annotations;
 
 import java.lang.annotation.*;
 

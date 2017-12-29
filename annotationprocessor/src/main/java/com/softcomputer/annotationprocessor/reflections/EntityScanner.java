@@ -1,9 +1,9 @@
-package com.softcomputer;
+package com.softcomputer.annotationprocessor.reflections;
 
 import com.google.common.base.Optional;
-import com.softcomputer.annotations.Column;
-import com.softcomputer.annotations.MetaData;
-import com.softcomputer.annotations.Table;
+import com.softcomputer.annotationprocessor.annotations.Column;
+import com.softcomputer.annotationprocessor.annotations.MetaData;
+import com.softcomputer.annotationprocessor.annotations.Table;
 import org.apache.commons.lang3.StringUtils;
 
 import org.reflections.scanners.AbstractScanner;
@@ -11,6 +11,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 public class EntityScanner extends AbstractScanner {
+    protected static final String ID_KEY = "byId";
     public EntityScanner() {
     }
 
@@ -53,17 +54,28 @@ public class EntityScanner extends AbstractScanner {
                 if (StringUtils.isNotEmpty(sql)) {
                     sql = "SELECT " + sql;
                     sql += " FROM " + table.name();
-                    String whereClause = " WHERE ";
                     if (StringUtils.isNotEmpty(table.where())) {
-                        whereClause += table.where() + " AND ";
+                        sql += " WHERE " +table.where();
                     }
+                    getStore().put(className, sql);
+
                     if (primaryKey.isPresent()) {
-                        String query = sql + whereClause + primaryKey.get().name() + primaryKey.get().query();
-                        getStore().put(className, query);
+                        String queryPrimaryKey = primaryKey.get().name() + primaryKey.get().whereClause();
+                        if (StringUtils.isEmpty(table.where())) {
+                            queryPrimaryKey = " WHERE " + queryPrimaryKey;
+                        } else {
+                            queryPrimaryKey = " AND " + queryPrimaryKey;
+                        }
+                        getStore().put(className + "["+ID_KEY+"]", queryPrimaryKey);
                     }
                     if (foreignEntities.size() > 0) {
                         for (Class<?> key : foreignEntities.keySet()) {
-                            String query = sql + whereClause + foreignEntities.get(key).name() + foreignEntities.get(key).query();
+                            String query = foreignEntities.get(key).name() + foreignEntities.get(key).whereClause();
+                            if (StringUtils.isEmpty(table.where())) {
+                                query = " WHERE " + query;
+                            } else {
+                                query = " AND " + query;
+                            }
                             getStore().put(className + "[" + key.getCanonicalName() + "]", query);
                         }
                     }

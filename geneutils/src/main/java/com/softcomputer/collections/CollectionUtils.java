@@ -11,22 +11,32 @@ public final class CollectionUtils {
     private  CollectionUtils() {
     }
 
+    public static <T> Optional<T> first(Collection<T> collection){
+        return first(collection, new Predict<T>() {
+            public boolean predict(T element) {
+                return true;
+            }
+        });
+    }
+
     public static <T> Optional<T> first(Collection<T> collection, Predict<T> predict){
-        Validate.notNull(collection, "collection");
         Validate.notNull(predict, "predict");
-        for (T element : collection) {
-            if(predict.predict(element)) return Optional.of(element);
+        if(collection != null) {
+            for (T element : collection) {
+                if (predict.predict(element)) return Optional.of(element);
+            }
         }
         return Optional.absent();
     }
 
     public static <T> List<T> predict(Collection<T> collection, Predict<T> predict) {
-        Validate.notNull(collection, "collection");
         Validate.notNull(predict, "predict");
         List<T> ret = new ArrayList<T>();
-        for (T element : collection) {
-            if(predict.predict(element)) {
-                ret.add(element);
+        if(collection != null) {
+            for (T element : collection) {
+                if (predict.predict(element)) {
+                    ret.add(element);
+                }
             }
         }
         return ret;
@@ -41,7 +51,6 @@ public final class CollectionUtils {
     }
 
     public static <T> boolean isNotEmpty(Collection<T> collection, Predict<T> predict) {
-        Validate.notNull(collection, "collection");
         Validate.notNull(predict, "predict");
         if(collection != null) {
             for (T element : collection) {

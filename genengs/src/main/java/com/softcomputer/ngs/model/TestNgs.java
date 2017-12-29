@@ -1,6 +1,6 @@
 package com.softcomputer.ngs.model;
 
-import com.softcomputer.annotations.Column;
+import com.softcomputer.annotationprocessor.annotations.Column;
 import com.softcomputer.model.Test;
 
 public class TestNgs extends Test {
@@ -8,7 +8,7 @@ public class TestNgs extends Test {
     @Column(name = "GP_OTST_DESC")
     private String description;
 
-    @Column(name = "GP_OTST_TASKLISTID", foreignEntity = Tasklist.class, query = " = (SELECT GP_TKL_RECID FROM GP_TASKLIST WHERE GP_TKL_NUM = ?)")
+    @Column(name = "GP_OTST_TASKLISTID", foreignEntity = Tasklist.class, whereClause = " = (SELECT GP_TKL_RECID FROM GP_TASKLIST WHERE GP_TKL_NUM = ?)")
     private Long tasklistId;
 
     public String getDescription() {

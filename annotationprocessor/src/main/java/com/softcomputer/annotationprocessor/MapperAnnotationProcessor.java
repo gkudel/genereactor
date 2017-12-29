@@ -1,9 +1,8 @@
-package com.softcomputer;
+package com.softcomputer.annotationprocessor;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.Lists;
-import com.softcomputer.annotations.Column;
-import com.softcomputer.annotations.MetaData;
+import com.softcomputer.annotationprocessor.annotations.Column;
+import com.softcomputer.annotationprocessor.annotations.MetaData;
 import com.softcomputer.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -19,12 +18,13 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 
-@SupportedAnnotationTypes("com.softcomputer.annotations.Column")
+@SupportedAnnotationTypes("com.softcomputer.annotationprocessor.annotations.Column")
 @SupportedSourceVersion(SourceVersion.RELEASE_6)
 @AutoService(Processor.class)
-public class FactoryProcessor extends AbstractProcessor {
+public class MapperAnnotationProcessor extends AbstractProcessor {
 
     private static Map<String, String> FunctionMapping = new HashMap<String, String>();
+    public static final String NAME_POSTFIX = "Mapper";
     static {
         FunctionMapping.put(String.class.getName(), "getString");
         FunctionMapping.put(Long.class.getName(), "getLong");
@@ -125,10 +125,10 @@ public class FactoryProcessor extends AbstractProcessor {
         }
 
         if(typeDescriptor.getParent() != null && StringUtils.isEmpty(parentFactoryClassName)) {
-            parentFactoryClassName = typeDescriptor.getParent().getQualifiedName().toString() + "Factory";
+            parentFactoryClassName = typeDescriptor.getParent().getQualifiedName().toString() + NAME_POSTFIX;
         }
         String simpleClassName = className.substring(lastDot + 1);
-        String factoryClassName = className + "Factory";
+        String factoryClassName = className + NAME_POSTFIX;
         String factorySimpleClassName = factoryClassName.substring(lastDot + 1);
 
         JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(factoryClassName);
@@ -142,13 +142,13 @@ public class FactoryProcessor extends AbstractProcessor {
                 out.println();
             }
 
-            out.println("import com.softcomputer.factory.Factory;");
+            out.println("import com.softcomputer.annotationprocessor.orm.Mapper;");
             out.println("import java.sql.ResultSet;");
             out.println("import java.sql.SQLException;");
             out.println();
             out.print("public class ");
             out.print(factorySimpleClassName);
-            out.print(" implements Factory<");
+            out.print(" implements Mapper<");
             out.print(className);
             out.print(">");
             out.println(" {");

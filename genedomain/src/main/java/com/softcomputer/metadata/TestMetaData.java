@@ -1,6 +1,7 @@
 package com.softcomputer.metadata;
 
-import com.softcomputer.annotations.Column;
+
+import com.softcomputer.annotationprocessor.annotations.Column;
 
 public class TestMetaData {
 

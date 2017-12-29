@@ -15,8 +15,6 @@
     </properties>
 
     <modules>
-        <module>genecore</module>
-        <module>reflections</module>
         <module>annotationprocessor</module>
         <module>genedomain</module>
         <module>genemain</module>
