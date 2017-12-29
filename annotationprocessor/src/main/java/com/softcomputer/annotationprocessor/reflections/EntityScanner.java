@@ -11,7 +11,22 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 public class EntityScanner extends AbstractScanner {
-    protected static final String ID_KEY = "byId";
+    public enum QueryId {
+        UNDEFIEND("Undefined"),
+        READBYID("ById"),
+        DELETE("Delete"),
+        INSERT("Insert"),
+        UPDATE("Update");
+
+        private final String id;
+        QueryId(String id) {
+            this.id = id;
+        }
+
+        public String getId() {
+            return  id;
+        }
+    }
     public EntityScanner() {
     }
 
@@ -25,65 +40,125 @@ public class EntityScanner extends AbstractScanner {
                 String className = this.getMetadataAdapter().getClassName(cls);
                 List<Field> fields = this.getMetadataAdapter().getFields(cls);
                 fields.addAll(getParentFields(cls.getSuperclass()));
-                Map<String, Optional<Column>> fieldMapping = new HashMap<String, Optional<Column>>();
+                Map<String, Optional<Column>> fieldsMapping = new HashMap<String, Optional<Column>>();
+                Optional<Column> primaryKey = Optional.absent();
                 for (Field field : fields) {
                     Column column = field.getAnnotation(Column.class);
-                    fieldMapping.put(getFieldKey(field), column != null ? Optional.of(column) : Optional.<Column>absent());
+                    fieldsMapping.put(getFieldKey(field), column != null ? Optional.of(column) : Optional.<Column>absent());
                 }
-                parseMetaData(cls, fieldMapping);
-                Map<Class<?>, Column> foreignEntities = new HashMap<Class<?>, Column>();
-
-                String sql = StringUtils.EMPTY;
-                Optional<Column> primaryKey = Optional.absent();
-                for (String field : fieldMapping.keySet()) {
-                    Optional<Column> optionalColumn = fieldMapping.get(field);
-                    if (optionalColumn.isPresent()) {
-                        Column column = optionalColumn.get();
-                        if (column.isPrimaryKey()) {
-                            if (primaryKey.isPresent()) throw new RuntimeException();
-                            primaryKey = Optional.of(column);
-                        }
-                        if (!void.class.equals(column.foreignEntity())) {
-                            if (foreignEntities.containsKey(column.foreignEntity())) throw new RuntimeException();
-                            foreignEntities.put(column.foreignEntity(), column);
-                        }
-                        if (StringUtils.isEmpty(sql)) sql = column.name();
-                        else sql += ", " + column.name();
+                parseMetaData(cls, fieldsMapping);
+                for (String key : fieldsMapping.keySet()) {
+                    Optional<Column> columnOptional = fieldsMapping.get(key);
+                    if(columnOptional.isPresent() && columnOptional.get().isPrimaryKey()) {
+                        if (primaryKey.isPresent()) throw new RuntimeException();
+                        primaryKey = columnOptional;
                     }
                 }
-                if (StringUtils.isNotEmpty(sql)) {
-                    sql = "SELECT " + sql;
-                    sql += " FROM " + table.name();
-                    if (StringUtils.isNotEmpty(table.where())) {
-                        sql += " WHERE " +table.where();
-                    }
-                    getStore().put(className, sql);
+                generateReadQueries(className, table, fieldsMapping, primaryKey);
+                generateDeleteQuery(className, table, primaryKey);
+                generateInsertQuery(className, table, fieldsMapping);
+                generateUpdateQuery(className, table, fieldsMapping, primaryKey);
+            }
+        }
+    }
 
-                    if (primaryKey.isPresent()) {
-                        String queryPrimaryKey = primaryKey.get().name() + primaryKey.get().whereClause();
-                        if (StringUtils.isEmpty(table.where())) {
-                            queryPrimaryKey = " WHERE " + queryPrimaryKey;
-                        } else {
-                            queryPrimaryKey = " AND " + queryPrimaryKey;
-                        }
-                        getStore().put(className + "["+ID_KEY+"]", queryPrimaryKey);
+    private void generateReadQueries(String className, Table table, Map<String, Optional<Column>> fieldsMapping, Optional<Column> primaryKey ) {
+        String sql = StringUtils.EMPTY;
+        Map<Class<?>, Column> foreignEntities = new HashMap<Class<?>, Column>();
+        for (String field : fieldsMapping.keySet()) {
+            Optional<Column> optionalColumn = fieldsMapping.get(field);
+            if (optionalColumn.isPresent()) {
+                Column column = optionalColumn.get();
+                if (!void.class.equals(column.foreignEntity())) {
+                    if (foreignEntities.containsKey(column.foreignEntity())) throw new RuntimeException();
+                    foreignEntities.put(column.foreignEntity(), column);
+                }
+                if (StringUtils.isEmpty(sql)) sql = column.name();
+                else sql += ", " + column.name();
+            }
+        }
+        if (StringUtils.isNotEmpty(sql)) {
+            sql = "SELECT " + sql;
+            sql += " FROM " + table.name();
+            if (StringUtils.isNotEmpty(table.where())) {
+                sql += " WHERE " +table.where();
+            }
+            getStore().put(className, sql);
+
+            if (primaryKey.isPresent()) {
+                String queryPrimaryKey = primaryKey.get().name() + primaryKey.get().whereClause();
+                if (StringUtils.isEmpty(table.where())) {
+                    queryPrimaryKey = " WHERE " + queryPrimaryKey;
+                } else {
+                    queryPrimaryKey = " AND " + queryPrimaryKey;
+                }
+                getStore().put(className + "["+QueryId.READBYID.getId()+"]", queryPrimaryKey);
+
+            }
+            if (foreignEntities.size() > 0) {
+                for (Class<?> key : foreignEntities.keySet()) {
+                    String query = foreignEntities.get(key).name() + foreignEntities.get(key).whereClause();
+                    if (StringUtils.isEmpty(table.where())) {
+                        query = " WHERE " + query;
+                    } else {
+                        query = " AND " + query;
                     }
-                    if (foreignEntities.size() > 0) {
-                        for (Class<?> key : foreignEntities.keySet()) {
-                            String query = foreignEntities.get(key).name() + foreignEntities.get(key).whereClause();
-                            if (StringUtils.isEmpty(table.where())) {
-                                query = " WHERE " + query;
-                            } else {
-                                query = " AND " + query;
-                            }
-                            getStore().put(className + "[" + key.getCanonicalName() + "]", query);
-                        }
-                    }
+                    getStore().put(className + "[" + key.getCanonicalName() + "]", query);
                 }
             }
         }
     }
 
+    private void generateDeleteQuery(String className, Table table, Optional<Column> primaryKey ) {
+        if(primaryKey.isPresent()) {
+            String sql = "DELETE FROM " + table.name() + " WHERE " + primaryKey.get().name() + " = ? ";
+            getStore().put(className + "[" + QueryId.DELETE.getId() + "]", sql);
+        }
+    }
+
+    private void generateInsertQuery(String className, Table table, Map<String, Optional<Column>> fieldsMapping ) {
+        String sql = "INSERT INTO " + table.name();
+        String columns = StringUtils.EMPTY;
+        String values = StringUtils.EMPTY;
+        for (String key : fieldsMapping.keySet()) {
+            Optional<Column> columnOptional = fieldsMapping.get(key);
+            if(columnOptional.isPresent() && columnOptional.get().isUpdated()) {
+                if(StringUtils.isEmpty(columns))  {
+                    columns = columnOptional.get().name();
+                    values = " ? ";
+                } else {
+                    columns += ", " + columnOptional.get().name();
+                    values += ", ? ";
+                }
+            }
+        }
+        if(!StringUtils.isEmpty(columns)) {
+            sql = sql + "(" + columns + ") VALUES(" + values + ")";
+            getStore().put(className + "[" + QueryId.INSERT.getId() + "]", sql);
+        }
+    }
+
+    private void generateUpdateQuery(String className, Table table,
+                                      Map<String, Optional<Column>> fieldsMapping, Optional<Column> primaryKey) {
+        if(primaryKey.isPresent()) {
+            String sql = "UPDATE " + table.name() + " SET ";
+            String columns = StringUtils.EMPTY;
+            for (String key : fieldsMapping.keySet()) {
+                Optional<Column> columnOptional = fieldsMapping.get(key);
+                if (columnOptional.isPresent() && columnOptional.get().isUpdated() && !columnOptional.get().isPrimaryKey()) {
+                    if (StringUtils.isEmpty(columns)) {
+                        columns = columnOptional.get().name() + " = ? ";
+                    } else {
+                        columns +=  ", " + columnOptional.get().name() + " = ? ";
+                    }
+                }
+            }
+            if (!StringUtils.isEmpty(columns)) {
+                sql = sql + columns + " WHERE " + primaryKey.get().name() + " = ?";
+                getStore().put(className + "[" + QueryId.UPDATE.getId() + "]", sql);
+            }
+        }
+    }
 
     private List<Field> getParentFields(Class<?> cls){
         if(cls != null && !Object.class.equals(cls)) {

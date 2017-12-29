@@ -55,20 +55,27 @@ public class Reflections {
         }
     }
 
-    public Optional<String> getRawQuery(Class<?> type) {
-        Validate.notNull(type);
-        return getQuery(type.getName());
+    public Optional<String> getRawReadSql(Class<?> type) {
+        return getQuery(getKey(type, EntityScanner.QueryId.UNDEFIEND));
     }
 
-    public Optional<String> getQuery(Class<?> type) {
-        Validate.notNull(type);
-        return getQuery(type.getName(), getKey(type));
+    public Optional<String> getSql(Class<?> type, EntityScanner.QueryId queryId) {
+        if(queryId == EntityScanner.QueryId.READBYID) return getQuery(getKey(type, EntityScanner.QueryId.UNDEFIEND), getKey(type, queryId));
+        return getQuery(getKey(type, queryId));
     }
 
-    public Optional<String> getQuery(Class<?> type, Class<?> foreignEntity) {
-        Validate.notNull(type);
+    public Optional<String> getReadSql(Class<?> type, Class<?> foreignEntity) {
         Validate.notNull(foreignEntity);
-        return getQuery(type.getName(), getKey(type, foreignEntity));
+        return getQuery(getKey(type, EntityScanner.QueryId.UNDEFIEND), getKey(type, foreignEntity));
+    }
+
+    private String getKey(Class<?> type, EntityScanner.QueryId queryId) {
+        Validate.notNull(type);
+        Validate.notNull(queryId);
+        if(queryId != EntityScanner.QueryId.UNDEFIEND) {
+            return type.getName() + "["+queryId.getId()+"]";
+        }
+        return type.getName();
     }
 
     private String getKey(Class<?>... types) {
@@ -83,8 +90,6 @@ public class Reflections {
                 else foreignTypes += "," + types[i].getName();
             }
             key += "["+foreignTypes+"]";
-        } else {
-            key += "["+EntityScanner.ID_KEY+"]";
         }
         return key;
     }
@@ -102,7 +107,7 @@ public class Reflections {
                             if (queries.size() > 1) throw new RuntimeException();
                             Optional<String> queryOptional = CollectionUtils.first(queries);
                             if(!queryOptional.isPresent()) throw new RuntimeException("Invalid key["+key+"]");
-                            if (queries.size() == 1) ret += queryOptional.get();
+                            if (queries.size() == 1) ret += " " + queryOptional.get();
                         }
                     }
                     query = Optional.of(ret);
